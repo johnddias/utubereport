@@ -4,6 +4,9 @@ import logging
 import sys
 import requests
 import argparse
+import json
+import csv
+
 
 def getchannel ( channelId, api_key ):
     "Grab channel playlists ID for channelId"
@@ -55,12 +58,27 @@ parser = argparse.ArgumentParser(description="Retrieve a list of videos from a Y
 parser.add_argument('-c','--channelId', help="YouTube Channel ID",required=True)
 args = parser.parse_args()
 
-
+#get API key from apikey file
+#todo: allow user to specify api key path and filename
 fo = open("apikey", "r")
 api_key = fo.read()
+fo.close()
 
+#get all the playlists for the speicified channel
+allplaylists = getchannel(args.channelId,api_key)
 
-response = getchannel(args.channelId,api_key)
+#layout headers for csv file output
+#todo: allow user to specify csv filename and path for output
+csvf = open("utubereport.csv", "wb")
+writer = csv.writer(csvf, delimiter=',', quotechar='"', quoting=csv.QUOTE_ALL)
+headers = ['Playlist','Title','Description','Date Added','Video URL']
+writer.writerow(headers)
 
-videolist = getvideos(response[5]["id"],api_key)
-print len(videolist)
+for playlist in allplaylists:
+    videolist = getvideos(playlist["id"],api_key)
+    for video in videolist:
+        videoUrl = "https://youtube.com/watch?v=%s" % video["snippet"]["resourceId"]["videoId"]
+        newRow = [playlist["snippet"]["title"].encode("utf-8"),video["snippet"]["title"].encode("utf-8"),video["snippet"]["description"].encode("utf-8"),video["snippet"]["publishedAt"].encode("utf-8"),videoUrl.encode("utf-8")]
+        writer.writerow(newRow)
+
+csvf.close()
